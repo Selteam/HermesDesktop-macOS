@@ -1,0 +1,47 @@
+name: Build Hermes Desktop
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build (macOS 26, arm64)
+    runs-on: macos-26
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_27.0.app/Contents/Developer
+      
+      - name: Show Xcode version
+        run: xcodebuild -version
+      
+      - name: Build
+        working-directory: Project-01.xcodeproj/..
+        run: |
+          xcodebuild \
+            -project Project-01.xcodeproj \
+            -scheme HermesDesktop \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath "$RUNNER_TEMP/hermes-build" \
+            CODE_SIGNING_ALLOWED=NO \
+            build | xcbeautify || true
+      
+      - name: Verify binary
+        if: success()
+        run: |
+          APP="$RUNNER_TEMP/hermes-build/Build/Products/Debug/HermesDesktop.app"
+          if [ -d "$APP" ]; then
+            echo "✅ App built: $APP"
+            file "$APP/Contents/MacOS/HermesDesktop"
+            ls -la "$APP/Contents/MacOS/"
+          else
+            echo "❌ App not found"
+            exit 1
+          fi
